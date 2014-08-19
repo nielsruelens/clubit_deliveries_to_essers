@@ -13,7 +13,7 @@
             <field name="direction">in</field>
             <field name="model">stock.picking.out</field>
             <field name="method">receive_essers_in</field>
-            <field name="partner_resolver">essers_partner_resolver</field>
+            <field name="validator">edi_essers_validator</field>
         </record>
     </data>
 </openerp>
