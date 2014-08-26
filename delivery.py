@@ -56,6 +56,7 @@ class stock_picking_out(osv.Model):
     def edi_export_essers(self, cr, uid, delivery, edi_struct=None, context=None):
 
         sale_db = self.pool.get('sale.order')
+        sale_order = 0
         if delivery.origin:
             sale_order = sale_db.search(cr, uid,[('name', '=', delivery.origin)])
             if sale_order:
@@ -123,11 +124,13 @@ class stock_picking_out(osv.Model):
         ET.SubElement(temp, "TIMEZONE").text = 'CET'
 
         # Line items
-        for i, line in enumerate(delivery.move_lines):
+        i = 0
+        for line in delivery.move_lines:
+            i = i + 1
             temp = ET.SubElement(header, "E1BPOBDLVITEM")
             temp.set('SEGMENT','1')
             ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-            ET.SubElement(temp, "ITM_NUMBER").text = str(i+1)
+            ET.SubElement(temp, "ITM_NUMBER").text = str(i)
             ET.SubElement(temp, "MATERIAL").text = line.product_id.ean13
             ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(line.product_qty))
             ET.SubElement(temp, "BOMEXPL_NO").text = '5'
@@ -135,8 +138,25 @@ class stock_picking_out(osv.Model):
             temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
             temp.set('SEGMENT','1')
             ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-            ET.SubElement(temp, "ITM_NUMBER").text = str(i+1)
-            ET.SubElement(temp, "STGE_LOC").text = '0'          #????????????????????????
+            ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+            ET.SubElement(temp, "STGE_LOC").text = '0'
+
+            if line.product_id.bom_ids:
+                for bom in line.product_id.bom_ids[0].bom_lines:
+                    i = i + 1
+                    temp = ET.SubElement(header, "E1BPOBDLVITEM")
+                    temp.set('SEGMENT','1')
+                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+                    ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+                    ET.SubElement(temp, "MATERIAL").text = bom.product_id.ean13
+                    ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(bom.product_qty))
+                    ET.SubElement(temp, "BOMEXPL_NO").text = '6'
+
+                    temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
+                    temp.set('SEGMENT','1')
+                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+                    ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+                    ET.SubElement(temp, "STGE_LOC").text = '0'
 
         return root
 
