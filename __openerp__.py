@@ -12,7 +12,6 @@
         'clubit_recheck_availability',
         'clubit_delivery_extensions',
         'clubit_tools',
-        'clubit_expertm',
     ],
     'data': [
         'config.xml',
