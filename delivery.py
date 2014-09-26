@@ -1,5 +1,6 @@
 from openerp.osv import osv
 import datetime
+import xmltodict
 from openerp.tools.translate import _
 try:
     import xml.etree.cElementTree as ET
@@ -56,6 +57,7 @@ class stock_picking_out(osv.Model):
     def edi_export_essers(self, cr, uid, delivery, edi_struct=None, context=None):
 
         sale_db = self.pool.get('sale.order')
+        move_db = self.pool.get('stock.move')
         sale_order = 0
         if delivery.origin:
             sale_order = sale_db.search(cr, uid,[('name', '=', delivery.origin)])
@@ -77,8 +79,14 @@ class stock_picking_out(osv.Model):
         temp = ET.SubElement(header, "E1BPOBDLVHDR")
         temp.set('SEGMENT','1')
         ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-        ET.SubElement(temp, "ROUTE").text = 'ESS'
         ET.SubElement(temp, "EXTDELV_NO").text = delivery.order_reference
+
+        if delivery.incoterm:
+            if delivery.incoterm.code == 'EXW':
+                ET.SubElement(temp, "ROUTE").text = 'PICKUP'
+            else:
+                ET.SubElement(temp, "ROUTE").text = 'ESSERS'
+
 
         # Sold to
         if sale_order:
@@ -123,31 +131,55 @@ class stock_picking_out(osv.Model):
         ET.SubElement(temp, "TIMESTAMP_UTC").text = datetime.datetime.strptime(delivery.min_date, '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d%H%M%S')
         ET.SubElement(temp, "TIMEZONE").text = 'CET'
 
+        # Crossdock
+        temp = ET.SubElement(header, "E1BPEXT")
+        temp.set('SEGMENT','1')
+        ET.SubElement(temp, "PARAM").text = delivery.name + '000000'
+        ET.SubElement(temp, "ROW").text = '0'
+        ET.SubElement(temp, "FIELD").text = 'SSP'
+        if delivery.crossdock_overrule == 'yes':
+            ET.SubElement(temp, "VALUE").text = 'Y'
+        else:
+            ET.SubElement(temp, "VALUE").text = 'N'
+
+        # Groupage
+        temp = ET.SubElement(header, "E1BPEXT")
+        temp.set('SEGMENT','1')
+        ET.SubElement(temp, "PARAM").text = delivery.name + '000000'
+        ET.SubElement(temp, "ROW").text = '0'
+        ET.SubElement(temp, "FIELD").text = 'SOP'
+        if delivery.groupage_overrule == 'yes':
+            ET.SubElement(temp, "VALUE").text = 'N'
+        else:
+            ET.SubElement(temp, "VALUE").text = 'Y'
+
+
         # Line items
         i = 0
         for line in delivery.move_lines:
-            i = i + 1
+
+            if line.state != 'assigned':
+                continue
+
+            i = i + 100
             temp = ET.SubElement(header, "E1BPOBDLVITEM")
             temp.set('SEGMENT','1')
             ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-            ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+            ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (i,)
             ET.SubElement(temp, "MATERIAL").text = line.product_id.ean13
             ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(line.product_qty))
-            ET.SubElement(temp, "BOMEXPL_NO").text = '5'
 
-            temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
-            temp.set('SEGMENT','1')
-            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-            ET.SubElement(temp, "ITM_NUMBER").text = str(i)
-            ET.SubElement(temp, "STGE_LOC").text = '0'
-
-            if line.product_id.bom_ids:
+            if not line.product_id.bom_ids:
+                ET.SubElement(temp, "BOMEXPL_NO").text = '0'
+            else:
+                ET.SubElement(temp, "BOMEXPL_NO").text = '5'
+                j = i
                 for bom in line.product_id.bom_ids[0].bom_lines:
-                    i = i + 1
+                    j = j + 1
                     temp = ET.SubElement(header, "E1BPOBDLVITEM")
                     temp.set('SEGMENT','1')
                     ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-                    ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+                    ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
                     ET.SubElement(temp, "MATERIAL").text = bom.product_id.ean13
                     ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(bom.product_qty))
                     ET.SubElement(temp, "BOMEXPL_NO").text = '6'
@@ -155,29 +187,118 @@ class stock_picking_out(osv.Model):
                     temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
                     temp.set('SEGMENT','1')
                     ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-                    ET.SubElement(temp, "ITM_NUMBER").text = str(i)
+                    ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
                     ET.SubElement(temp, "STGE_LOC").text = '0'
+
+
+            temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
+            temp.set('SEGMENT','1')
+            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+            ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (i,)
+            if not line.storage_location:
+                ET.SubElement(temp, "STGE_LOC").text = '0'
+            else:
+                ET.SubElement(temp, "STGE_LOC").text = line.storage_location
+
+
+            # Write this EDI sequence to the delivery for referencing the response
+            # --------------------------------------------------------------------
+            move_db.write(cr, uid, line.id, {'edi_sequence': "%06d" % (i,)}, context=context)
 
         return root
 
 
-        #ET.SubElement(root, "Incoterm").text = delivery.incoterm.name or ''
-        #ET.SubElement(root, "Instruction1").text = delivery.instruction1
-        #ET.SubElement(root, "Instruction2").text = delivery.instruction2
-        #ET.SubElement(root, "CrossdockOverrule").text = delivery.crossdock_overrule
-        #ET.SubElement(root, "GroupageOverrule").text = delivery.groupage_overrule
-
-
-
-
 
     def edi_essers_validator(self, cr, uid, ids, context):
+
+        # Read the EDI Document
+        # ---------------------
+        edi_db = self.pool.get('clubit.tools.edi.document.incoming')
+        document = edi_db.browse(cr, uid, ids, context)
+
+        # Convert the document to JSON
+        # ----------------------------
+        try:
+            content = xmltodict.parse(document.content)
+            content = content['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
+        except Exception:
+            edi_db.message_post(cr, uid, document.id, body='Error found: content is not valid XML or the structure deviates from what is expected.')
+            return False
+
+        # Check if we can find the delivery
+        # ---------------------------------
+        delivery = self.search(cr, uid, [('name','=',content['DELIVERY'])], context=context)
+        if not delivery:
+            edi_db.message_post(cr, uid, document.id, body='Error found: could not find the referenced delivery: {!s}.'.format(content['DELIVERY']))
+            return False
+        delivery = self.browse(cr, uid, delivery[0], context=context)
+
+        # Check if all the line items match
+        # ---------------------------------
+        if not content['E1BPOBDLVITEMCON']:
+            edi_db.message_post(cr, uid, document.id, body='Error found: no line items provided.')
+            return False
+        for edi_line in content['E1BPOBDLVITEMCON']:
+            if not edi_line['DELIV_ITEM']:
+                edi_db.message_post(cr, uid, document.id, body='Error found: line item provided without an identifier.')
+                return False
+            if not edi_line['MATERIAL']:
+                edi_db.message_post(cr, uid, document.id, body='Error found: line item provided without a material identifier.')
+                return False
+            if not edi_line['DLV_QTY_IMUNIT']:
+                edi_db.message_post(cr, uid, document.id, body='Error found: line item provided without a quantity.')
+                return False
+
+            move_line = [x for x in delivery.move_lines if x.edi_sequence == edi_line['DELIV_ITEM']]
+            if not move_line: # skip BOM explosion lines
+                continue
+            move_line = move_line[0]
+            if move_line.product_id.ean13 <> edi_line['MATERIAL']:
+                edi_db.message_post(cr, uid, document.id, body='Error found: line mentioned with EDI sequence {!s} has a different material.'.format(edi_line['DELIV_ITEM']))
+                return False
+
         return True
 
 
 
-    def edi_import_thr(self, cr, uid, ids, context):
+    def receive_essers_in(self, cr, uid, ids, context):
+
+
+        # Attempt to validate the file right before processing
+        # ----------------------------------------------------
+        edi_db = self.pool.get('clubit.tools.edi.document.incoming')
+        if not self.edi_essers_validator(cr, uid, ids, context):
+            edi_db.message_post(cr, uid, ids, body='Error found: during processing, the document was found invalid.')
+            return False
+
+        document = edi_db.browse(cr, uid, ids, context)
+        content = xmltodict.parse(document.content)
+        content = content['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
+
+        # Process the EDI Document
+        # ------------------------
+        delivery = self.search(cr, uid, [('name','=', content['DELIVERY'])], context=context)
+        delivery = self.browse(cr, uid, delivery[0], context=context)
+
+        vals = {}
+        for edi_line in content['E1BPOBDLVITEMCON']:
+            move_line = [x for x in delivery.move_lines if x.edi_sequence == edi_line['DELIV_ITEM']]
+            if not move_line: #skip BOM explosion lines
+                continue
+            move_line = move_line[0]
+
+            move = {
+                    'prodlot_id': False,
+                    'product_id': move_line.product_id.id,
+                    'product_uom': move_line.product_uom.id,
+                    'product_qty': float(edi_line['DLV_QTY_IMUNIT'])}
+            vals["move" + str(move_line.id)] = move
+
+
+        # Make the call to do_partial() to set the document to 'done'
+        # -----------------------------------------------------------
+        try:
+            self.pool.get('stock.picking').do_partial(cr, uid, [delivery.id], vals, context=context)
+        except Exception as e:
+            return False
         return True
-
-
-
