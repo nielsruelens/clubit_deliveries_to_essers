@@ -180,7 +180,7 @@ class stock_picking_out(osv.Model):
                     temp.set('SEGMENT','1')
                     ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
                     ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
-                    ET.SubElement(temp, "MATERIAL").text = bom.product_id.ean13
+                    ET.SubElement(temp, "MATERIAL").text = bom.product_id.name
                     ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(bom.product_qty))
                     ET.SubElement(temp, "BOMEXPL_NO").text = '6'
 
