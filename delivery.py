@@ -127,7 +127,7 @@ class stock_picking_out(osv.Model):
         temp = ET.SubElement(header, "E1BPDLVDEADLN")
         temp.set('SEGMENT','1')
         ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
-        ET.SubElement(temp, "TIMETYPE").text = 'WSHDRWADAT'
+        ET.SubElement(temp, "TIMETYPE").text = 'WSHDRLFDAT'
         ET.SubElement(temp, "TIMESTAMP_UTC").text = datetime.datetime.strptime(delivery.min_date, '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d%H%M%S')
         ET.SubElement(temp, "TIMEZONE").text = 'CET'
 
@@ -166,7 +166,7 @@ class stock_picking_out(osv.Model):
             temp.set('SEGMENT','1')
             ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
             ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (i,)
-            ET.SubElement(temp, "MATERIAL").text = line.product_id.ean13
+            ET.SubElement(temp, "MATERIAL").text = line.product_id.name
             ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(line.product_qty))
 
             if not line.product_id.bom_ids:
