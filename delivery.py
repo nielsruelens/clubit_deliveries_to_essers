@@ -164,7 +164,7 @@ class stock_picking_out(osv.Model):
             i = i + 100
             temp = ET.SubElement(header, "E1BPOBDLVITEM")
             temp.set('SEGMENT','1')
-            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
             ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (i,)
             ET.SubElement(temp, "MATERIAL").text = line.product_id.name
             ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(line.product_qty))
@@ -273,7 +273,7 @@ class stock_picking_out(osv.Model):
 
         document = edi_db.browse(cr, uid, ids, context)
         content = xmltodict.parse(document.content)
-        content = content['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
+        content = content['SHP_OBDLV_CONFIRM_DECENTRAL02']['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
 
         # Process the EDI Document
         # ------------------------
