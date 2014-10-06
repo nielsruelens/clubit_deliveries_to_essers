@@ -78,7 +78,7 @@ class stock_picking_out(osv.Model):
 
         temp = ET.SubElement(header, "E1BPOBDLVHDR")
         temp.set('SEGMENT','1')
-        ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+        ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
         ET.SubElement(temp, "EXTDELV_NO").text = delivery.order_reference
 
         if delivery.incoterm:
@@ -126,7 +126,7 @@ class stock_picking_out(osv.Model):
         # Timing info
         temp = ET.SubElement(header, "E1BPDLVDEADLN")
         temp.set('SEGMENT','1')
-        ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+        ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
         ET.SubElement(temp, "TIMETYPE").text = 'WSHDRLFDAT'
         ET.SubElement(temp, "TIMESTAMP_UTC").text = datetime.datetime.strptime(delivery.min_date, '%Y-%m-%d %H:%M:%S').strftime('%Y%m%d%H%M%S')
         ET.SubElement(temp, "TIMEZONE").text = 'CET'
@@ -134,7 +134,7 @@ class stock_picking_out(osv.Model):
         # Crossdock
         temp = ET.SubElement(header, "E1BPEXT")
         temp.set('SEGMENT','1')
-        ET.SubElement(temp, "PARAM").text = delivery.name + '000000'
+        ET.SubElement(temp, "PARAM").text = delivery.name.replace('/','_') + '000000'
         ET.SubElement(temp, "ROW").text = '0'
         ET.SubElement(temp, "FIELD").text = 'SSP'
         if delivery.crossdock_overrule == 'yes':
@@ -145,7 +145,7 @@ class stock_picking_out(osv.Model):
         # Groupage
         temp = ET.SubElement(header, "E1BPEXT")
         temp.set('SEGMENT','1')
-        ET.SubElement(temp, "PARAM").text = delivery.name + '000000'
+        ET.SubElement(temp, "PARAM").text = delivery.name.replace('/','_') + '000000'
         ET.SubElement(temp, "ROW").text = '0'
         ET.SubElement(temp, "FIELD").text = 'SOP'
         if delivery.groupage_overrule == 'yes':
@@ -178,7 +178,7 @@ class stock_picking_out(osv.Model):
                     j = j + 1
                     temp = ET.SubElement(header, "E1BPOBDLVITEM")
                     temp.set('SEGMENT','1')
-                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
                     ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
                     ET.SubElement(temp, "MATERIAL").text = bom.product_id.name
                     ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(bom.product_qty))
@@ -186,14 +186,14 @@ class stock_picking_out(osv.Model):
 
                     temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
                     temp.set('SEGMENT','1')
-                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+                    ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
                     ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
                     ET.SubElement(temp, "STGE_LOC").text = '0'
 
 
             temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
             temp.set('SEGMENT','1')
-            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name
+            ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
             ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (i,)
             if not line.storage_location:
                 ET.SubElement(temp, "STGE_LOC").text = '0'
@@ -220,14 +220,14 @@ class stock_picking_out(osv.Model):
         # ----------------------------
         try:
             content = xmltodict.parse(document.content)
-            content = content['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
+            content = content['SHP_OBDLV_CONFIRM_DECENTRAL02']['IDOC']['E1SHP_OBDLV_CONFIRM_DECENTR']
         except Exception:
             edi_db.message_post(cr, uid, document.id, body='Error found: content is not valid XML or the structure deviates from what is expected.')
             return False
 
         # Check if we can find the delivery
         # ---------------------------------
-        delivery = self.search(cr, uid, [('name','=',content['DELIVERY'])], context=context)
+        delivery = self.search(cr, uid, [('name','=',content['DELIVERY'].replace('_','/'))], context=context)
         if not delivery:
             edi_db.message_post(cr, uid, document.id, body='Error found: could not find the referenced delivery: {!s}.'.format(content['DELIVERY']))
             return False
@@ -277,7 +277,7 @@ class stock_picking_out(osv.Model):
 
         # Process the EDI Document
         # ------------------------
-        delivery = self.search(cr, uid, [('name','=', content['DELIVERY'])], context=context)
+        delivery = self.search(cr, uid, [('name','=', content['DELIVERY'].replace('_','/'))], context=context)
         delivery = self.browse(cr, uid, delivery[0], context=context)
 
         vals = {}
