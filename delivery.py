@@ -97,7 +97,7 @@ class stock_picking_out(osv.Model):
             ET.SubElement(temp, "PARTNER_NO").text = sale_order.partner_id.reference
             temp = ET.SubElement(header, "E1BPADR1")
             temp.set('SEGMENT','1')
-            ET.SubElement(temp, "ADDRESS_NO").text = '1'
+            ET.SubElement(temp, "ADDR_NO").text = '1'
             ET.SubElement(temp, "NAME").text = sale_order.partner_id.name
             ET.SubElement(temp, "CITY").text = sale_order.partner_id.city
             ET.SubElement(temp, "POSTL_COD1").text = sale_order.partner_id.zip
@@ -181,7 +181,7 @@ class stock_picking_out(osv.Model):
                     ET.SubElement(temp, "DELIV_NUMB").text = delivery.name.replace('/','_')
                     ET.SubElement(temp, "ITM_NUMBER").text = "%06d" % (j,)
                     ET.SubElement(temp, "MATERIAL").text = bom.product_id.name
-                    ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(bom.product_qty))
+                    ET.SubElement(temp, "DLV_QTY_STOCK").text = str(int(line.product_qty * bom.product_qty))
                     ET.SubElement(temp, "BOMEXPL_NO").text = '6'
 
                     temp = ET.SubElement(header, "E1BPOBDLVITEMORG")
