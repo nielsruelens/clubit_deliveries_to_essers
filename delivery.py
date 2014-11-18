@@ -1,4 +1,4 @@
-from openerp.osv import osv
+from openerp.osv import osv, fields
 import datetime
 import xmltodict
 from openerp.tools.translate import _
@@ -8,12 +8,62 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
+
+
+class stock_picking(osv.Model):
+    _name = "stock.picking"
+    _inherit = "stock.picking"
+
+
+    ''' stock.picking:_function_edi_sent_get()
+        --------------------------------------
+        This method calculates the value of field edi_sent by
+        looking at the database and checking for EDI docs
+        on this delivery.
+        ------------------------------------------------------ '''
+    def _function_edi_sent_essers_get(self, cr, uid, ids, field, arg, context=None):
+        edi_db = self.pool.get('clubit.tools.edi.document.outgoing')
+        flow_db = self.pool.get('clubit.tools.edi.flow')
+        flow_id = flow_db.search(cr, uid, [('model', '=', 'stock.picking.out'),('method', '=', 'send_essers_out')])[0]
+        res = dict.fromkeys(ids, False)
+        for pick in self.browse(cr, uid, ids, context=context):
+            docids = edi_db.search(cr, uid, [('flow_id', '=', flow_id),('reference', '=', pick.name)])
+            if not docids: continue
+            edi_docs = edi_db.browse(cr, uid, docids, context=context)
+            edi_docs.sort(key = lambda x: x.create_date, reverse=True)
+            res[pick.id] = edi_docs[0].create_date
+        return res
+
+
+    _columns = {
+        'edi_sent_essers': fields.function(_function_edi_sent_essers_get, type='datetime', string='EDI sent'),
+    }
+
+
 class stock_picking_out(osv.Model):
     _name = "stock.picking.out"
     _inherit = "stock.picking.out"
 
+
+    def _function_edi_sent_essers_get(self, cr, uid, ids, field, arg, context=None):
+        return False
+
+
+    _columns = {
+        'edi_sent_essers': fields.function(_function_edi_sent_essers_get, type='datetime', string='EDI sent'),
+    }
+
+
     def essers_partner_resolver(self, cr, uid, ids, context):
-        raise osv.except_osv(_('Warning!'), _("Resolving is not supported for this flow."))
+        pids = self.pool.get('res.partner').search(cr, uid, [('name','=','Essers')])
+        if not pids:
+            raise osv.except_osv(_('Warning!'), _("Could not find Essers partner!"))
+        result_list = []
+        for pick in self.browse(cr, uid, ids, context):
+            result_list.append({'id' : pick.id, 'partner_id': pids[0]})
+        return result_list
+
+#        raise osv.except_osv(_('Warning!'), _("Resolving is not supported for this flow."))
 
     def send_essers_out(self, cr, uid, items, context=None):
         ''' stock.picking.out:send_essers_out()
