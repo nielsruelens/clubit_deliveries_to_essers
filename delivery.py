@@ -288,6 +288,9 @@ class stock_picking_out(osv.Model):
         if not content['E1BPOBDLVITEMCON']:
             edi_db.message_post(cr, uid, document.id, body='Error found: no line items provided.')
             return False
+        #cast the line items to a list if there's only 1 item
+        if not isinstance(content['E1BPOBDLVITEMCON'], list):
+            content['E1BPOBDLVITEMCON'] = [content['E1BPOBDLVITEMCON']]
         for edi_line in content['E1BPOBDLVITEMCON']:
             if not edi_line['DELIV_ITEM']:
                 edi_db.message_post(cr, uid, document.id, body='Error found: line item provided without an identifier.')
@@ -331,6 +334,9 @@ class stock_picking_out(osv.Model):
         delivery = self.browse(cr, uid, delivery[0], context=context)
 
         vals = {}
+        #cast the line items to a list if there's only 1 item
+        if not isinstance(content['E1BPOBDLVITEMCON'], list):
+            content['E1BPOBDLVITEMCON'] = [content['E1BPOBDLVITEMCON']]
         for edi_line in content['E1BPOBDLVITEMCON']:
             move_line = [x for x in delivery.move_lines if x.edi_sequence == edi_line['DELIV_ITEM']]
             if not move_line: #skip BOM explosion lines
