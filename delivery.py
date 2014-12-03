@@ -306,7 +306,7 @@ class stock_picking_out(osv.Model):
             if not move_line: # skip BOM explosion lines
                 continue
             move_line = move_line[0]
-            if move_line.product_id.ean13 <> edi_line['MATERIAL']:
+            if move_line.product_id.name <> edi_line['MATERIAL']:
                 edi_db.message_post(cr, uid, document.id, body='Error found: line mentioned with EDI sequence {!s} has a different material.'.format(edi_line['DELIV_ITEM']))
                 return False
 
