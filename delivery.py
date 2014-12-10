@@ -74,7 +74,7 @@ class stock_picking_out(osv.Model):
          otherwise an error will occur.
          ---------------------------------------------------- '''
 
-
+        sale_db = self.pool.get('sale.order')
         edi_db = self.pool.get('clubit.tools.edi.document.outgoing')
 
         # Get the selected items
@@ -90,8 +90,19 @@ class stock_picking_out(osv.Model):
         for pick in pickings:
             if pick.state != 'assigned':
                 nope += pick.name + ', '
+            if not pick.partner_id.reference:
+                nope += pick.name + ', '
+
+            sale_order = 0
+            if pick.origin:
+                sale_order = sale_db.search(cr, uid,[('name', '=', pick.origin)])
+                if sale_order:
+                    sale_order = sale_db.browse(cr, uid, sale_order[0])
+                    if not sale_order.partner_id.reference:
+                        nope += pick.name + ', '
+
         if nope:
-            raise osv.except_osv(_('Warning!'), _("Not all documents had state 'assigned'. Please exclude the following documents: {!s}").format(nope))
+            raise osv.except_osv(_('Warning!'), _("Not all documents had state 'assigned' or had partners with an empty reference. Please exclude the following documents: {!s}").format(nope))
 
 
         # Actual processing of all the deliveries
