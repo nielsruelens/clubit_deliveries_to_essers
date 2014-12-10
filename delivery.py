@@ -164,7 +164,7 @@ class stock_picking_out(osv.Model):
         ET.SubElement(temp, "PARTNER_NO").text = delivery.partner_id.reference
         temp = ET.SubElement(header, "E1BPADR1")
         temp.set('SEGMENT','1')
-        ET.SubElement(temp, "ADDRESS_NO").text = '2'
+        ET.SubElement(temp, "ADDR_NO").text = '2'
         ET.SubElement(temp, "NAME").text = delivery.partner_id.name
         ET.SubElement(temp, "CITY").text = delivery.partner_id.city
         ET.SubElement(temp, "POSTL_COD1").text = delivery.partner_id.zip
