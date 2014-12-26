@@ -15,7 +15,6 @@
     ],
     'data': [
         'config.xml',
-        'stock_view.xml',
         'wizard/delivery_out.xml',
     ],
     'demo': [
